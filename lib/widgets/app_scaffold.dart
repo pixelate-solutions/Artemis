@@ -20,7 +20,11 @@ class AppScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final bottomPadding = bottomNavigationBar == null ? 0.0 : 80 + bottomInset;
+    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final navHeight = bottomNavigationBar == null ? 0.0 : 80 + bottomInset;
+    final bottomPadding = bottomNavigationBar == null || keyboardOpen ? 0.0 : navHeight;
+    final navFillColor =
+        isDark ? Colors.white.withOpacity(0.06) : Colors.white.withOpacity(0.96);
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -37,16 +41,32 @@ class AppScaffold extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
       ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: appBar,
-        body: Padding(
-          padding: EdgeInsets.only(bottom: bottomPadding),
-          child: body,
-        ),
-        bottomNavigationBar: bottomNavigationBar,
-        floatingActionButton: floatingActionButton,
-        extendBody: true,
+      child: Stack(
+        children: [
+          if (bottomNavigationBar != null && !keyboardOpen)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: navHeight,
+              child: IgnorePointer(
+                child: Container(
+                  color: navFillColor,
+                ),
+              ),
+            ),
+          Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: appBar,
+            body: Padding(
+              padding: EdgeInsets.only(bottom: bottomPadding),
+              child: body,
+            ),
+            bottomNavigationBar: bottomNavigationBar,
+            floatingActionButton: floatingActionButton,
+            extendBody: true,
+          ),
+        ],
       ),
     );
   }

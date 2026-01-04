@@ -81,6 +81,8 @@ class FriendDetailScreen extends ConsumerWidget {
             LocationMapCard(
               lat: friend.lastKnownLat!,
               lng: friend.lastKnownLng!,
+              mapStyle: MapStyle.satellite,
+              lastUpdated: friend.lastActive,
             ),
         ],
       ),

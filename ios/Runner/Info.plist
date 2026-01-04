@@ -2,10 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>PRVNT</string>
+	<string>Artemis</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>prvnt</string>
+	<string>artemis</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -25,13 +27,23 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>PRVNT uses Bluetooth to connect to your safety button.</string>
+	<string>Artemis uses Bluetooth to connect to your safety button.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>PRVNT connects to a BLE safety button.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>PRVNT uses location to send emergency alerts.</string>
+	<string>Artemis connects to a BLE safety button.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>PRVNT accesses your contacts to select emergency contacts.</string>
+	<string>Artemis accesses your contacts to select emergency contacts.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Artemis uses location to share emergency alerts even when the app is not open.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Artemis uses location to share emergency alerts even when the app is not open.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Artemis uses location to send emergency alerts.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -49,9 +61,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
 </dict>
 </plist>

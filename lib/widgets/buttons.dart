@@ -28,7 +28,12 @@ class PrimaryButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
           ),
         ),
-        child: Text(label),
+        child: Center(
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+          ),
+        ),
       );
     }
     return ElevatedButton.icon(
@@ -75,7 +80,12 @@ class SecondaryButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
           ),
         ),
-        child: Text(label),
+        child: Center(
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+          ),
+        ),
       );
     }
     return OutlinedButton.icon(

@@ -42,12 +42,14 @@ class DeviceState {
     int? batteryLevel,
     PermissionStatusSummary? permissionSummary,
     DateTime? lastSeen,
+    bool clearConnectedDevice = false,
   }) {
     return DeviceState(
       status: status ?? this.status,
       bluetoothOn: bluetoothOn ?? this.bluetoothOn,
       devices: devices ?? this.devices,
-      connectedDevice: connectedDevice ?? this.connectedDevice,
+      connectedDevice:
+          clearConnectedDevice ? null : connectedDevice ?? this.connectedDevice,
       lastPayload: lastPayload ?? this.lastPayload,
       error: error ?? this.error,
       batteryLevel: batteryLevel ?? this.batteryLevel,

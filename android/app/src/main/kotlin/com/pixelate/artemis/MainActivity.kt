@@ -1,4 +1,4 @@
-package com.example.prvnt
+package com.pixelate.artemis
 
 import io.flutter.embedding.android.FlutterActivity
 

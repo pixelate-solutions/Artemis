@@ -5,8 +5,14 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../app/constants.dart';
+import 'formatters.dart';
 import 'buttons.dart';
 import 'glass_card.dart';
+
+enum MapStyle {
+  street,
+  satellite,
+}
 
 class LocationMapCard extends StatelessWidget {
   const LocationMapCard({
@@ -15,23 +21,46 @@ class LocationMapCard extends StatelessWidget {
     required this.lng,
     this.title = 'Location',
     this.height = 200,
+    this.mapStyle = MapStyle.street,
+    this.lastUpdated,
   });
 
   final double lat;
   final double lng;
   final String title;
   final double height;
+  final MapStyle mapStyle;
+  final DateTime? lastUpdated;
 
   @override
   Widget build(BuildContext context) {
     final point = LatLng(lat, lng);
+    final useSatellite = mapStyle == MapStyle.satellite;
+    final tileUrl = useSatellite
+        ? 'https://services.arcgisonline.com/ArcGIS/rest/services/'
+            'World_Imagery/MapServer/tile/{z}/{y}/{x}'
+        : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    final labelUrl = useSatellite
+        ? 'https://services.arcgisonline.com/ArcGIS/rest/services/'
+            'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
+        : null;
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              if (lastUpdated != null)
+                Text(
+                  'Updated ${formatTimestampFromDate(lastUpdated!)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+            ],
           ),
           const SizedBox(height: AppSpacing.sm),
           ClipRRect(
@@ -50,10 +79,14 @@ class LocationMapCard extends StatelessWidget {
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.prvnt.app',
+                    urlTemplate: tileUrl,
+                    userAgentPackageName: 'com.pixelate.artemis',
                   ),
+                  if (labelUrl != null)
+                    TileLayer(
+                      urlTemplate: labelUrl,
+                      userAgentPackageName: 'com.pixelate.artemis',
+                    ),
                   MarkerLayer(
                     markers: [
                       Marker(

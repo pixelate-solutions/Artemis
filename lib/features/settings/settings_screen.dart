@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,7 +9,6 @@ import '../../services/permissions/permission_service.dart';
 import '../../widgets/app_scaffold.dart';
 import '../../widgets/glass_app_bar.dart';
 import '../../widgets/glass_card.dart';
-import '../emergency/emergency_controller.dart';
 import 'settings_controller.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -20,7 +20,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen>
     with WidgetsBindingObserver {
-  final TextEditingController _backendController = TextEditingController();
   Future<AppPermissionStatus>? _permissionsFuture;
 
   @override
@@ -33,7 +32,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _backendController.dispose();
     super.dispose();
   }
 
@@ -48,10 +46,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsControllerProvider);
     final controller = ref.read(settingsControllerProvider.notifier);
-
-    if (_backendController.text != settings.backendUrl) {
-      _backendController.text = settings.backendUrl;
-    }
 
     return AppScaffold(
       appBar: GlassAppBar(
@@ -70,6 +64,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             future: _permissionsFuture,
             builder: (context, snapshot) {
               final status = snapshot.data;
+              final isApple = defaultTargetPlatform == TargetPlatform.iOS ||
+                  defaultTargetPlatform == TargetPlatform.macOS;
               return GlassCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -84,7 +80,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       granted: status?.bluetoothGranted ?? false,
                     ),
                     _PermissionRow(
-                      label: 'Location',
+                      label: isApple ? 'Location (Always)' : 'Location',
                       granted: status?.locationGranted ?? false,
                     ),
                     _PermissionRow(
@@ -208,49 +204,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             ),
           ),
           const SizedBox(height: 12),
-          GlassCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Backend (Optional)',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _backendController,
-                  decoration: const InputDecoration(
-                    hintText: 'https://your-backend',
-                  ),
-                  onChanged: (value) => controller.updateBackendUrl(value.trim()),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          GlassCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Test Emergency',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Trigger an emergency flow without BLE.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: () => ref
-                      .read(emergencyControllerProvider.notifier)
-                      .startSession(payload: 'PANIC', deviceId: 'TEST'),
-                  child: const Text('Trigger Emergency'),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -273,6 +226,7 @@ class _PermissionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -281,7 +235,9 @@ class _PermissionRow extends StatelessWidget {
           Text(
             granted ? 'Granted' : 'Needed',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: granted ? Colors.greenAccent : Colors.orangeAccent,
+                  color: granted
+                      ? (isDark ? Colors.greenAccent : Colors.green.shade700)
+                      : (isDark ? Colors.orangeAccent : Colors.orange.shade700),
                 ),
           ),
         ],

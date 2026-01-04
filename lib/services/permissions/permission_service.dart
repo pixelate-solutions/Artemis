@@ -34,16 +34,14 @@ class AppPermissionStatus {
 
 class PermissionService {
   Future<PermissionStatusSummary> checkBlePermissions() async {
-    final permissions = _permissions();
-    final statuses = await Future.wait(permissions.map((perm) => perm.status));
-    final bluetoothGranted = statuses.asMap().entries
-        .where((entry) => _isBluetoothPermission(permissions[entry.key]))
-        .every((entry) => entry.value.isGranted);
-    final locationGranted = statuses.asMap().entries
-        .where((entry) => _isLocationPermission(permissions[entry.key]))
-        .every((entry) => entry.value.isGranted);
-    final permanentlyDenied =
-        statuses.any((status) => status.isPermanentlyDenied);
+    final bluetoothStatuses =
+        await Future.wait(_bluetoothPermissions().map((perm) => perm.status));
+    final bluetoothGranted =
+        bluetoothStatuses.every((status) => status.isGranted);
+    final locationStatus = await _locationPermission().status;
+    final locationGranted = locationStatus.isGranted;
+    final permanentlyDenied = bluetoothStatuses.any((status) => status.isPermanentlyDenied) ||
+        locationStatus.isPermanentlyDenied;
     return PermissionStatusSummary(
       bluetoothGranted: bluetoothGranted,
       locationGranted: locationGranted,
@@ -52,15 +50,14 @@ class PermissionService {
   }
 
   Future<PermissionStatusSummary> requestBlePermissions() async {
-    final permissions = _permissions();
-    final results = await permissions.request();
-    final bluetoothGranted = results.entries
-        .where((entry) => _isBluetoothPermission(entry.key))
-        .every((entry) => entry.value.isGranted);
-    final locationGranted = results.entries
-        .where((entry) => _isLocationPermission(entry.key))
-        .every((entry) => entry.value.isGranted);
-    final permanentlyDenied = results.values.any((status) => status.isPermanentlyDenied);
+    final bluetoothResults = await _bluetoothPermissions().request();
+    final bluetoothGranted =
+        bluetoothResults.values.every((status) => status.isGranted);
+    final locationStatus = await _requestLocationPermission();
+    final locationGranted = locationStatus.isGranted;
+    final permanentlyDenied =
+        bluetoothResults.values.any((status) => status.isPermanentlyDenied) ||
+            locationStatus.isPermanentlyDenied;
     return PermissionStatusSummary(
       bluetoothGranted: bluetoothGranted,
       locationGranted: locationGranted,
@@ -108,28 +105,30 @@ class PermissionService {
     await openAppSettings();
   }
 
-  List<Permission> _permissions() {
+  List<Permission> _bluetoothPermissions() {
     if (Platform.isAndroid) {
       return [
         Permission.bluetoothScan,
         Permission.bluetoothConnect,
-        Permission.locationWhenInUse,
       ];
     }
     return [
       Permission.bluetooth,
-      Permission.locationWhenInUse,
     ];
   }
 
-  bool _isBluetoothPermission(Permission permission) {
-    return permission == Permission.bluetooth ||
-        permission == Permission.bluetoothScan ||
-        permission == Permission.bluetoothConnect;
+  Permission _locationPermission() {
+    if (Platform.isIOS || Platform.isMacOS) {
+      return Permission.locationAlways;
+    }
+    return Permission.locationWhenInUse;
   }
 
-  bool _isLocationPermission(Permission permission) {
-    return permission == Permission.locationWhenInUse ||
-        permission == Permission.location;
+  Future<PermissionStatus> _requestLocationPermission() async {
+    if (Platform.isIOS || Platform.isMacOS) {
+      await Permission.locationWhenInUse.request();
+      return Permission.locationAlways.request();
+    }
+    return Permission.locationWhenInUse.request();
   }
 }

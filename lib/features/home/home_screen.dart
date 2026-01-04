@@ -7,7 +7,9 @@ import '../../features/contacts/contacts_controller.dart';
 import '../../features/device/device_controller.dart';
 import '../../features/device/device_state.dart';
 import '../../features/emergency/emergency_controller.dart';
+import '../../features/emergency/emergency_state.dart';
 import '../../features/logs/logs_controller.dart';
+import '../../features/settings/settings_controller.dart';
 import '../../widgets/app_scaffold.dart';
 import '../../widgets/formatters.dart';
 import '../../widgets/glass_app_bar.dart';
@@ -20,8 +22,13 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final deviceState = ref.watch(deviceControllerProvider);
+    final settings = ref.watch(settingsControllerProvider);
     final contacts = ref.watch(emergencyContactsProvider);
     final logs = ref.watch(logsControllerProvider);
+    final emergency = ref.watch(emergencyControllerProvider);
+    final emergencyActive = emergency.phase == EmergencyPhase.countdown ||
+        emergency.phase == EmergencyPhase.sending ||
+        emergency.phase == EmergencyPhase.sent;
 
     final statusLabel = switch (deviceState.status) {
       BleConnectionStatus.scanning => 'Scanning',
@@ -41,7 +48,7 @@ class HomeScreen extends ConsumerWidget {
     final contactPreview = contacts.take(5).toList();
 
     return AppScaffold(
-      appBar: const GlassAppBar(title: 'PRVNT'),
+      appBar: const GlassAppBar(title: 'Artemis'),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
@@ -150,7 +157,11 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Trigger emergency mode and notify your trusted contacts.',
+                  emergencyActive
+                      ? 'Emergency mode is active. End it from the emergency screen.'
+                      : settings.demoMode
+                          ? 'Demo mode is enabled. This will simulate a PANIC event.'
+                          : 'Trigger emergency mode and notify your trusted contacts.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 12),
@@ -161,10 +172,25 @@ class HomeScreen extends ConsumerWidget {
                       backgroundColor: Colors.redAccent,
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: () => ref
-                        .read(emergencyControllerProvider.notifier)
-                        .startSession(payload: 'PANIC', deviceId: 'MANUAL'),
-                    child: const Text('Trigger Emergency'),
+                    onPressed: emergencyActive
+                        ? null
+                        : settings.demoMode
+                            ? ref
+                                .read(deviceControllerProvider.notifier)
+                                .simulatePanic
+                            : () => ref
+                                .read(emergencyControllerProvider.notifier)
+                                .startSession(
+                                  payload: 'PANIC',
+                                  deviceId: 'MANUAL',
+                                ),
+                    child: Text(
+                      emergencyActive
+                          ? 'Emergency Active'
+                          : settings.demoMode
+                              ? 'Demo PANIC'
+                              : 'Trigger Emergency',
+                    ),
                   ),
                 ),
               ],

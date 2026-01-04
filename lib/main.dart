@@ -21,7 +21,7 @@ Future<void> main() async {
         storageServiceProvider.overrideWithValue(storage),
         eventLogDbProvider.overrideWithValue(eventDb),
       ],
-      child: const PrvntApp(),
+      child: const ArtemisApp(),
     ),
   );
 }

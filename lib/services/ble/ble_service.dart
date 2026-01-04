@@ -24,8 +24,8 @@ class BleService {
     return device.connect(timeout: timeout ?? const Duration(seconds: 12));
   }
 
-  Future<void> disconnect(BluetoothDevice device) {
-    return device.disconnect();
+  Future<void> disconnect(BluetoothDevice device, {bool queue = true}) {
+    return device.disconnect(queue: queue);
   }
 
   Future<List<BluetoothService>> discoverServices(BluetoothDevice device) {

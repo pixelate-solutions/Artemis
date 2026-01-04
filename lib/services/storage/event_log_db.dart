@@ -20,7 +20,7 @@ class EventLogDatabase {
       return;
     }
     final directory = await getApplicationDocumentsDirectory();
-    final dbPath = path.join(directory.path, 'prvnt.db');
+    final dbPath = path.join(directory.path, 'artemis.db');
     _db = await openDatabase(
       dbPath,
       version: 2,

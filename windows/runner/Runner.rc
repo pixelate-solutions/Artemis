@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "prvnt" "\0"
+            VALUE "CompanyName", "com.pixelate" "\0"
+            VALUE "FileDescription", "Artemis" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "prvnt" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "prvnt.exe" "\0"
-            VALUE "ProductName", "prvnt" "\0"
+            VALUE "InternalName", "Artemis" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.pixelate. All rights reserved." "\0"
+            VALUE "OriginalFilename", "artemis.exe" "\0"
+            VALUE "ProductName", "Artemis" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

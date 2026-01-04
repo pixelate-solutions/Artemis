@@ -256,13 +256,15 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       return;
     }
 
-    await showModalBottomSheet<void>(
+    await showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.xl,
+          ),
           child: GlassCard(
             borderRadius: 28,
             child: SizedBox(
@@ -364,87 +366,89 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     final nameController = TextEditingController(text: contact?.name ?? '');
     final phoneController = TextEditingController(text: contact?.phone ?? '');
 
-    await showModalBottomSheet<void>(
+    await showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: AppSpacing.lg,
-            right: AppSpacing.lg,
-            top: AppSpacing.lg,
-          ),
-          child: GlassCard(
-            borderRadius: 28,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  contact == null ? 'Add Contact' : 'Edit Contact',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: phoneController,
-                  decoration: const InputDecoration(labelText: 'Phone'),
-                  keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
+        final viewInsets = MediaQuery.of(context).viewInsets;
+        return AnimatedPadding(
+          duration: AppDurations.medium,
+          padding: EdgeInsets.only(bottom: viewInsets.bottom),
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.xl,
+            ),
+            child: GlassCard(
+              borderRadius: 28,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    contact == null ? 'Add Contact' : 'Edit Contact',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: phoneController,
+                    decoration: const InputDecoration(labelText: 'Phone'),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          final name = nameController.text.trim();
-                          final phone = phoneController.text.trim();
-                          if (name.isEmpty || !_isValidPhone(phone)) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Enter a valid name/phone.'),
-                              ),
-                            );
-                            return;
-                          }
-                          final notifier =
-                              ref.read(contactsControllerProvider.notifier);
-                          if (contact == null) {
-                            notifier.addContact(Contact(
-                              id: DateTime.now().microsecondsSinceEpoch
-                                  .toString(),
-                              name: name,
-                              phone: phone,
-                              createdAt:
-                                  DateTime.now().millisecondsSinceEpoch,
-                              isEmergency: false,
-                            ));
-                          } else {
-                            notifier.updateContact(contact.copyWith(
-                              name: name,
-                              phone: phone,
-                            ));
-                          }
-                          Navigator.pop(context);
-                        },
-                        child: const Text('Save'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final name = nameController.text.trim();
+                            final phone = phoneController.text.trim();
+                            if (name.isEmpty || !_isValidPhone(phone)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Enter a valid name/phone.'),
+                                ),
+                              );
+                              return;
+                            }
+                            final notifier =
+                                ref.read(contactsControllerProvider.notifier);
+                            if (contact == null) {
+                              notifier.addContact(Contact(
+                                id: DateTime.now().microsecondsSinceEpoch
+                                    .toString(),
+                                name: name,
+                                phone: phone,
+                                createdAt:
+                                    DateTime.now().millisecondsSinceEpoch,
+                                isEmergency: false,
+                              ));
+                            } else {
+                              notifier.updateContact(contact.copyWith(
+                                name: name,
+                                phone: phone,
+                              ));
+                            }
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Save'),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );

@@ -12,22 +12,18 @@ class DeviceTile extends StatelessWidget {
     required this.isConnected,
     required this.onConnect,
     required this.onRename,
-    this.onDisconnect,
   });
 
   final BleDeviceInfo device;
   final bool isConnected;
   final VoidCallback onConnect;
   final VoidCallback onRename;
-  final VoidCallback? onDisconnect;
 
   @override
   Widget build(BuildContext context) {
     final label = device.nickname?.isNotEmpty == true
         ? device.nickname!
         : device.name;
-    final actionLabel = isConnected ? 'Disconnect' : 'Connect';
-    final actionCallback = isConnected ? onDisconnect : onConnect;
     return GlassCard(
       child: Row(
         children: [
@@ -78,17 +74,15 @@ class DeviceTile extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           ElevatedButton(
-            onPressed: actionCallback,
+            onPressed: isConnected ? null : onConnect,
             style: ElevatedButton.styleFrom(
-              backgroundColor: isConnected
-                  ? Colors.redAccent
-                  : Theme.of(context).colorScheme.primary,
-              foregroundColor: isConnected ? Colors.white : Colors.black,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.black,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            child: Text(actionLabel),
+            child: Text(isConnected ? 'Connected' : 'Connect'),
           ),
         ],
       ),

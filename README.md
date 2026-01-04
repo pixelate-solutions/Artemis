@@ -1,6 +1,6 @@
-# PRVNT (Production)
+# Artemis (Production)
 
-PRVNT is a production-ready Flutter app for a BLE safety button. It scans and connects to a BLE device, listens for `PANIC` notifications, and triggers an emergency workflow with location sharing and local event logging.
+Artemis is a production-ready Flutter app for a BLE safety button. It scans and connects to a BLE device, listens for `PANIC` notifications, and triggers an emergency workflow with location sharing and local event logging.
 
 ## Highlights
 - Riverpod + go_router architecture

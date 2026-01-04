@@ -21,11 +21,19 @@ class DeviceController extends Notifier<DeviceState> {
   StreamSubscription<BluetoothAdapterState>? _adapterSub;
   StreamSubscription<BluetoothConnectionState>? _connectionSub;
   StreamSubscription<List<int>>? _notifySub;
+  BluetoothCharacteristic? _notifyChar;
 
   final Map<String, BluetoothDevice> _deviceMap = {};
   BluetoothDevice? _connectedDevice;
   Timer? _reconnectTimer;
+  Timer? _autoScanTimer;
   bool _autoReconnectTriggered = false;
+  bool _manualDisconnect = false;
+  String? _manualDisconnectId;
+  String? _activeConnectionId;
+  bool _autoScanEnabled = false;
+  BluetoothAdapterState _adapterState = BluetoothAdapterState.unknown;
+  DateTime? _lastAutoScanAttempt;
 
   @override
   DeviceState build() {
@@ -40,33 +48,47 @@ class DeviceController extends Notifier<DeviceState> {
     final permissionService = ref.read(permissionServiceProvider);
     final summary = await permissionService.checkBlePermissions();
     state = state.copyWith(permissionSummary: summary);
+    _scheduleAutoScan();
   }
 
   Future<void> requestPermissions() async {
     final permissionService = ref.read(permissionServiceProvider);
     final summary = await permissionService.requestBlePermissions();
     state = state.copyWith(permissionSummary: summary);
+    _scheduleAutoScan();
   }
 
   Future<void> refreshPermissions() async {
     final permissionService = ref.read(permissionServiceProvider);
     final summary = await permissionService.checkBlePermissions();
     state = state.copyWith(permissionSummary: summary);
+    _scheduleAutoScan();
+  }
+
+  void setAutoScanEnabled(bool enabled) {
+    _autoScanEnabled = enabled;
+    if (!enabled) {
+      _autoScanTimer?.cancel();
+      unawaited(stopScan());
+      return;
+    }
+    _scheduleAutoScan();
   }
 
   Future<void> startScan() async {
-    if (!state.bluetoothOn) {
-      state = state.copyWith(
-        status: BleConnectionStatus.disconnected,
-        error: 'Bluetooth is turned off.',
-      );
-      return;
-    }
     final hasPermissions = await _ensureBlePermissions();
     if (!hasPermissions) {
       state = state.copyWith(
         status: BleConnectionStatus.disconnected,
         error: 'Permissions required to scan.',
+      );
+      return;
+    }
+    final adapterReady = await _ensureAdapterReady();
+    if (!adapterReady) {
+      state = state.copyWith(
+        status: BleConnectionStatus.disconnected,
+        error: _adapterErrorMessage(_adapterState),
       );
       return;
     }
@@ -106,6 +128,7 @@ class DeviceController extends Notifier<DeviceState> {
         state = state.copyWith(devices: sorted, lastSeen: now);
         if (settings.autoReconnect &&
             lastDeviceId != null &&
+            lastDeviceId != _manualDisconnectId &&
             devices.containsKey(lastDeviceId) &&
             state.status == BleConnectionStatus.scanning) {
           connectToDevice(lastDeviceId);
@@ -127,13 +150,15 @@ class DeviceController extends Notifier<DeviceState> {
       Future.delayed(const Duration(seconds: 11), () {
         if (state.status == BleConnectionStatus.scanning) {
           state = state.copyWith(status: BleConnectionStatus.disconnected);
+          _scheduleAutoScan();
         }
       });
     } catch (error) {
       state = state.copyWith(
         status: BleConnectionStatus.disconnected,
-        error: 'Scan failed: $error',
+        error: _scanErrorMessage(error),
       );
+      _scheduleAutoScan();
     }
   }
 
@@ -163,11 +188,22 @@ class DeviceController extends Notifier<DeviceState> {
   }
 
   Future<void> connectToDevice(String deviceId) async {
+    _manualDisconnect = false;
+    _manualDisconnectId = null;
+    _activeConnectionId = deviceId;
     final hasPermissions = await _ensureBlePermissions();
     if (!hasPermissions) {
       state = state.copyWith(
         status: BleConnectionStatus.disconnected,
         error: 'Permissions required to connect.',
+      );
+      return;
+    }
+    final adapterReady = await _ensureAdapterReady();
+    if (!adapterReady) {
+      state = state.copyWith(
+        status: BleConnectionStatus.disconnected,
+        error: _adapterErrorMessage(_adapterState),
       );
       return;
     }
@@ -181,11 +217,22 @@ class DeviceController extends Notifier<DeviceState> {
 
     await _connectionSub?.cancel();
     _connectionSub = device.connectionState.listen((connectionState) {
+      if (_activeConnectionId != deviceId) {
+        return;
+      }
       if (connectionState == BluetoothConnectionState.disconnected) {
-        state = state.copyWith(status: BleConnectionStatus.disconnected);
+        final shouldReconnect = !_manualDisconnect;
+        _manualDisconnect = false;
+        state = state.copyWith(
+          status: BleConnectionStatus.disconnected,
+          clearConnectedDevice: true,
+        );
         _connectedDevice = null;
+        _notifyChar = null;
         _notifySub?.cancel();
-        _attemptAutoReconnect(deviceId);
+        if (shouldReconnect) {
+          _attemptAutoReconnect(deviceId);
+        }
       }
       if (connectionState == BluetoothConnectionState.connected) {
         state = state.copyWith(status: BleConnectionStatus.connected);
@@ -196,9 +243,13 @@ class DeviceController extends Notifier<DeviceState> {
       await ref
           .read(bleServiceProvider)
           .connect(device, timeout: const Duration(seconds: 12));
+      if (_activeConnectionId != deviceId) {
+        await ref.read(bleServiceProvider).disconnect(device, queue: false);
+        return;
+      }
       _connectedDevice = device;
       await ref.read(storageServiceProvider).saveLastDeviceId(deviceId);
-      await _discoverAndSubscribe(device);
+      await _discoverAndSubscribe(device, deviceId);
     } catch (error) {
       state = state.copyWith(
         status: BleConnectionStatus.disconnected,
@@ -208,15 +259,38 @@ class DeviceController extends Notifier<DeviceState> {
   }
 
   Future<void> disconnect() async {
+    _manualDisconnect = true;
+    final deviceId =
+        state.connectedDevice?.id ?? _connectedDevice?.remoteId.toString();
+    _manualDisconnectId = deviceId;
+    _activeConnectionId = null;
+    try {
+      await _notifyChar?.setNotifyValue(false);
+    } catch (_) {}
     await _notifySub?.cancel();
-    if (_connectedDevice == null) {
+    _notifySub = null;
+    _notifyChar = null;
+    await _connectionSub?.cancel();
+    _connectionSub = null;
+    state = state.copyWith(
+      status: BleConnectionStatus.disconnected,
+      clearConnectedDevice: true,
+    );
+    _connectedDevice = null;
+    if (deviceId != null) {
+      await ref.read(storageServiceProvider).saveLastDeviceId(null);
+    }
+    final device = _deviceMap[deviceId];
+    if (device == null) {
+      _scheduleAutoScan();
       return;
     }
     try {
-      await ref.read(bleServiceProvider).disconnect(_connectedDevice!);
-    } catch (_) {}
-    _connectedDevice = null;
-    state = state.copyWith(status: BleConnectionStatus.disconnected);
+      await ref.read(bleServiceProvider).disconnect(device, queue: false);
+      _scheduleAutoScan();
+    } catch (error) {
+      state = state.copyWith(error: 'Disconnect failed: $error');
+    }
   }
 
   Future<void> updateNickname(String deviceId, String nickname) async {
@@ -239,9 +313,18 @@ class DeviceController extends Notifier<DeviceState> {
     _handlePayload('PANIC', 'SIMULATED');
   }
 
-  Future<void> _discoverAndSubscribe(BluetoothDevice device) async {
+  Future<void> _discoverAndSubscribe(
+    BluetoothDevice device,
+    String deviceId,
+  ) async {
+    if (_activeConnectionId != deviceId) {
+      return;
+    }
     try {
       final services = await ref.read(bleServiceProvider).discoverServices(device);
+      if (_activeConnectionId != deviceId) {
+        return;
+      }
       final notifyService = services.firstWhere(
         (service) => service.uuid == Guid(BleUuids.service),
         orElse: () => throw StateError('Service not found'),
@@ -252,16 +335,22 @@ class DeviceController extends Notifier<DeviceState> {
       );
 
       await _notifySub?.cancel();
+      _notifyChar = notifyChar;
       await notifyChar.setNotifyValue(true);
       _notifySub = notifyChar.onValueReceived.listen((value) {
         final payload = _decodePayload(value);
         _handlePayload(payload, _deviceId(device));
       });
 
+      if (_activeConnectionId != deviceId) {
+        return;
+      }
       state = state.copyWith(status: BleConnectionStatus.subscribed);
       await _readBattery(services);
       final info = _deviceInfo(device);
-      state = state.copyWith(connectedDevice: info);
+      if (_activeConnectionId == deviceId) {
+        state = state.copyWith(connectedDevice: info);
+      }
     } catch (error) {
       state = state.copyWith(
         status: BleConnectionStatus.connected,
@@ -314,7 +403,14 @@ class DeviceController extends Notifier<DeviceState> {
   }
 
   void _handlePayload(String payload, String deviceId) {
+    if (deviceId != 'SIMULATED' && _connectedDevice == null) {
+      return;
+    }
     state = state.copyWith(lastPayload: payload);
+    if (_isCancelPayload(payload)) {
+      ref.read(emergencyControllerProvider.notifier).handleCancelPayload();
+      return;
+    }
     if (_isPanicPayload(payload)) {
       ref.read(emergencyControllerProvider.notifier).startSession(
             payload: payload,
@@ -332,6 +428,22 @@ class DeviceController extends Notifier<DeviceState> {
         final decoded = jsonDecode(payload) as Map<String, dynamic>;
         final event = decoded['event']?.toString().toUpperCase();
         return event == 'PANIC';
+      } catch (_) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  bool _isCancelPayload(String payload) {
+    if (payload.toUpperCase().contains('CANCEL')) {
+      return true;
+    }
+    if (payload.trim().startsWith('{')) {
+      try {
+        final decoded = jsonDecode(payload) as Map<String, dynamic>;
+        final event = decoded['event']?.toString().toUpperCase();
+        return event == 'CANCEL';
       } catch (_) {
         return false;
       }
@@ -364,10 +476,61 @@ class DeviceController extends Notifier<DeviceState> {
 
   void _listenAdapter() {
     _adapterSub = ref.read(bleServiceProvider).adapterState.listen((adapterState) {
+      _adapterState = adapterState;
       state = state.copyWith(
         bluetoothOn: adapterState == BluetoothAdapterState.on,
       );
+      if (adapterState == BluetoothAdapterState.on) {
+        _scheduleAutoScan();
+      }
     });
+  }
+
+  Future<bool> _ensureAdapterReady() async {
+    if (_adapterState == BluetoothAdapterState.on) {
+      return true;
+    }
+    if (_adapterState == BluetoothAdapterState.unknown) {
+      try {
+        final next = await ref
+            .read(bleServiceProvider)
+            .adapterState
+            .firstWhere((state) =>
+                state == BluetoothAdapterState.on ||
+                state == BluetoothAdapterState.off)
+            .timeout(const Duration(seconds: 2));
+        _adapterState = next;
+        return next == BluetoothAdapterState.on;
+      } catch (_) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  String _adapterErrorMessage(BluetoothAdapterState state) {
+    return switch (state) {
+      BluetoothAdapterState.off =>
+        'Bluetooth is turned off. Turn it on and try again.',
+      BluetoothAdapterState.unauthorized =>
+        'Bluetooth permission denied. Enable it in Settings.',
+      BluetoothAdapterState.unavailable =>
+        'Bluetooth is unavailable on this device.',
+      BluetoothAdapterState.turningOff =>
+        'Bluetooth is turning off. Try again in a moment.',
+      BluetoothAdapterState.turningOn ||
+      BluetoothAdapterState.unknown =>
+        'Bluetooth is starting up. Try again in a moment.',
+      _ => 'Bluetooth is not ready yet.',
+    };
+  }
+
+  String _scanErrorMessage(Object error) {
+    final message = error.toString();
+    if (message.contains('CBManagerStateUnknown')) {
+      return 'Bluetooth is starting up. Try again in a moment.';
+    }
+    return 'Scan failed: $error';
   }
 
   void _attemptAutoReconnect(String deviceId) {
@@ -395,11 +558,49 @@ class DeviceController extends Notifier<DeviceState> {
     }
   }
 
+  void _scheduleAutoScan() {
+    if (!_autoScanEnabled) {
+      return;
+    }
+    _autoScanTimer?.cancel();
+    _autoScanTimer = Timer(const Duration(milliseconds: 300), () {
+      _autoScanIfReady();
+    });
+  }
+
+  Future<void> _autoScanIfReady() async {
+    if (!_autoScanEnabled) {
+      return;
+    }
+    if (state.status == BleConnectionStatus.scanning ||
+        state.status == BleConnectionStatus.connecting ||
+        state.status == BleConnectionStatus.connected ||
+        state.status == BleConnectionStatus.subscribed) {
+      return;
+    }
+    final summary = state.permissionSummary;
+    if (summary == null || !_hasScanPermissions(summary)) {
+      return;
+    }
+    if (!state.bluetoothOn) {
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastAutoScanAttempt != null &&
+        now.difference(_lastAutoScanAttempt!) < const Duration(seconds: 8)) {
+      return;
+    }
+    _lastAutoScanAttempt = now;
+    await startScan();
+  }
+
   void _dispose() {
     _scanSub?.cancel();
     _adapterSub?.cancel();
     _connectionSub?.cancel();
     _notifySub?.cancel();
+    _notifyChar = null;
     _reconnectTimer?.cancel();
+    _autoScanTimer?.cancel();
   }
 }

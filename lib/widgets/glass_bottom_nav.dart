@@ -30,6 +30,8 @@ class GlassBottomNav extends StatelessWidget {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final navColor = isDark ? Colors.white.withOpacity(0.06) : Colors.white.withOpacity(0.96);
+
     return ClipRRect(
       borderRadius: const BorderRadius.only(
         topLeft: Radius.circular(24),
@@ -41,19 +43,7 @@ class GlassBottomNav extends StatelessWidget {
           height: 80 + bottomInset,
           padding: EdgeInsets.only(bottom: bottomInset),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [
-                      Colors.white.withOpacity(0.08),
-                      Colors.white.withOpacity(0.02),
-                    ]
-                  : [
-                      Colors.white.withOpacity(0.75),
-                      Colors.white.withOpacity(0.45),
-                    ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: navColor,
             border: Border.all(
               color: Colors.white.withOpacity(isDark ? 0.08 : 0.3),
             ),

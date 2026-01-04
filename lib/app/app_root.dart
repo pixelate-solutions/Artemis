@@ -9,14 +9,14 @@ import 'router.dart';
 import 'theme.dart';
 import '../features/settings/settings_controller.dart';
 
-class PrvntApp extends ConsumerStatefulWidget {
-  const PrvntApp({super.key});
+class ArtemisApp extends ConsumerStatefulWidget {
+  const ArtemisApp({super.key});
 
   @override
-  ConsumerState<PrvntApp> createState() => _PrvntAppState();
+  ConsumerState<ArtemisApp> createState() => _ArtemisAppState();
 }
 
-class _PrvntAppState extends ConsumerState<PrvntApp> {
+class _ArtemisAppState extends ConsumerState<ArtemisApp> {
   bool _emergencyVisible = false;
 
   @override
@@ -38,7 +38,7 @@ class _PrvntAppState extends ConsumerState<PrvntApp> {
     });
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      title: 'PRVNT',
+      title: 'Artemis',
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,

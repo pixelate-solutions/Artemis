@@ -50,10 +50,12 @@ class EmergencyController extends StateNotifier<EmergencyState> {
   Timer? _countdownTimer;
   Timer? _locationTimer;
   bool _locationInProgress = false;
+  final Set<String> _notifiedPhones = {};
 
   bool get isActive =>
       state.phase == EmergencyPhase.countdown ||
-      state.phase == EmergencyPhase.sending;
+      state.phase == EmergencyPhase.sending ||
+      state.phase == EmergencyPhase.sent;
 
   Future<void> startSession({
     required String payload,
@@ -62,6 +64,7 @@ class EmergencyController extends StateNotifier<EmergencyState> {
     if (isActive) {
       return;
     }
+    _notifiedPhones.clear();
 
     final settings = ref.read(settingsControllerProvider);
     final eventId = await _database.insertEvent(EventLog(
@@ -110,6 +113,84 @@ class EmergencyController extends StateNotifier<EmergencyState> {
       phase: EmergencyPhase.canceled,
       statusText: 'Canceled',
     );
+  }
+
+  Future<void> handleCancelPayload() async {
+    if (state.phase == EmergencyPhase.countdown) {
+      await cancel();
+      return;
+    }
+    if (state.phase == EmergencyPhase.sending ||
+        state.phase == EmergencyPhase.sent ||
+        state.phase == EmergencyPhase.error) {
+      await endSession();
+    }
+  }
+
+  Future<void> notifyAdditionalContacts(List<Contact> contacts) async {
+    if (contacts.isEmpty) {
+      return;
+    }
+    if (state.phase != EmergencyPhase.sent &&
+        state.phase != EmergencyPhase.sending) {
+      return;
+    }
+    final newRecipients = contacts.where((contact) {
+      final normalized = _normalizePhone(contact.phone);
+      return normalized.isNotEmpty && !_notifiedPhones.contains(normalized);
+    }).toList();
+    if (newRecipients.isEmpty) {
+      return;
+    }
+
+    final settings = ref.read(settingsControllerProvider);
+    final position = await _locationService.getCurrentPosition();
+    final message = state.lastMessage ?? _composeMessage(position);
+
+    if (!settings.mockMode && settings.backendUrl.isNotEmpty) {
+      try {
+        await _smsService.send(
+          backendUrl: settings.backendUrl,
+          contacts: newRecipients,
+          message: message,
+        );
+      } catch (error) {
+        state = state.copyWith(
+          phase: EmergencyPhase.error,
+          statusText: 'Send failed: $error',
+        );
+        return;
+      }
+    }
+
+    _notifiedPhones.addAll(
+      newRecipients.map((contact) => _normalizePhone(contact.phone)),
+    );
+    final updatedRecipients = [
+      ...state.notifiedContacts,
+      ...newRecipients,
+    ];
+    final eventId = state.activeEventId;
+    if (eventId != null) {
+      await _database.updateEvent(eventId, {
+        'message': message,
+        'recipientsJson': jsonEncode(
+          updatedRecipients.map((c) => c.toMap()).toList(),
+        ),
+      });
+    }
+    ref.read(logsControllerProvider.notifier).load();
+    state = state.copyWith(
+      lastMessage: message,
+      notifiedContacts: updatedRecipients,
+    );
+  }
+
+  Future<void> endSession() async {
+    if (!isActive && state.phase != EmergencyPhase.error) {
+      return;
+    }
+    await reset();
   }
 
   Future<void> reset() async {
@@ -162,6 +243,10 @@ class EmergencyController extends StateNotifier<EmergencyState> {
         return;
       }
     }
+
+    _notifiedPhones.addAll(
+      contacts.map((contact) => _normalizePhone(contact.phone)),
+    );
 
     if (eventId != null && position != null) {
       await _database.insertLocation(LocationSample(
@@ -224,7 +309,7 @@ class EmergencyController extends StateNotifier<EmergencyState> {
     final location = position == null
         ? 'Location unavailable'
         : 'https://maps.google.com/?q=${position.latitude},${position.longitude}';
-    return 'PRVNT ALERT: Emergency triggered at $timestamp.\n'
+    return 'Artemis ALERT: Emergency triggered at $timestamp.\n'
         'Location: $location';
   }
 
@@ -246,5 +331,9 @@ class EmergencyController extends StateNotifier<EmergencyState> {
     _countdownTimer?.cancel();
     _locationTimer?.cancel();
     super.dispose();
+  }
+
+  String _normalizePhone(String phone) {
+    return phone.replaceAll(RegExp(r'[^0-9+]'), '');
   }
 }
