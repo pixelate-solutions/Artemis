@@ -111,7 +111,7 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
                                     .headlineSmall
                                     ?.copyWith(
                                       fontWeight: FontWeight.w700,
-                                      color: Colors.white,
+                                      color: _primaryTextColor(context),
                                     ),
                               ),
                               const SizedBox(height: 20),
@@ -122,7 +122,7 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
                                       .textTheme
                                       .displayMedium
                                       ?.copyWith(
-                                        color: Colors.white,
+                                        color: _primaryTextColor(context),
                                         fontWeight: FontWeight.bold,
                                       ),
                                 )
@@ -133,9 +133,12 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodyMedium
-                                      ?.copyWith(color: Colors.white70),
+                                      ?.copyWith(
+                                        color: _secondaryTextColor(context),
+                                      ),
                                 ),
-                              if (emergency.phase == EmergencyPhase.countdown) ...[
+                              if (emergency.phase ==
+                                  EmergencyPhase.countdown) ...[
                                 const SizedBox(height: 8),
                                 Text(
                                   'Alert will be sent when timer hits 0',
@@ -143,7 +146,9 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodySmall
-                                      ?.copyWith(color: Colors.white70),
+                                      ?.copyWith(
+                                        color: _mutedTextColor(context),
+                                      ),
                                 ),
                               ],
                               const SizedBox(height: 24),
@@ -197,7 +202,9 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodySmall
-                                      ?.copyWith(color: Colors.white70),
+                                      ?.copyWith(
+                                        color: _mutedTextColor(context),
+                                      ),
                                 ),
                                 const SizedBox(height: 8),
                                 ...emergency.notifiedContacts.map((contact) {
@@ -206,7 +213,9 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodySmall
-                                        ?.copyWith(color: Colors.white),
+                                        ?.copyWith(
+                                          color: _primaryTextColor(context),
+                                        ),
                                   );
                                 }),
                               ],
@@ -241,12 +250,27 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
     return 'Safe';
   }
 
-  Color _friendStatusColor(FriendStatus status) {
+  Color _primaryTextColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? Colors.white : Colors.black87;
+  }
+
+  Color _secondaryTextColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? Colors.white.withOpacity(0.85) : Colors.black54;
+  }
+
+  Color _mutedTextColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? Colors.white70 : Colors.black45;
+  }
+
+  Color _friendStatusColor(BuildContext context, FriendStatus status) {
     if (status == FriendStatus.active) {
       return Colors.redAccent;
     }
     if (status == FriendStatus.offline) {
-      return Colors.white70;
+      return _mutedTextColor(context);
     }
     return AppColors.accent;
   }
@@ -259,19 +283,24 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
         children: [
           Text(
             'Friends',
-            style: Theme.of(context).textTheme.titleMedium,
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(color: _primaryTextColor(context)),
           ),
           const SizedBox(height: 8),
           if (friends.isEmpty)
             Text(
               'No friends available.',
-              style:
-                  Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: _secondaryTextColor(context)),
             )
           else
             ...friends.map((friend) {
               final status = _friendStatusLabel(friend.status);
-              final statusColor = _friendStatusColor(friend.status);
+              final statusColor = _friendStatusColor(context, friend.status);
               final updatedLabel = friend.lastActive == null
                   ? 'Updated: unavailable'
                   : 'Updated ${formatTimestampFromDate(friend.lastActive!)}';
@@ -290,7 +319,9 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
                             style: Theme.of(context)
                                 .textTheme
                                 .bodyMedium
-                                ?.copyWith(color: Colors.white),
+                                ?.copyWith(
+                                  color: _primaryTextColor(context),
+                                ),
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -306,12 +337,15 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall
-                                ?.copyWith(color: Colors.white70),
+                                ?.copyWith(color: _mutedTextColor(context)),
                           ),
                         ],
                       ),
                     ),
                     TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor: _primaryTextColor(context),
+                      ),
                       onPressed: hasLocation
                           ? () => _showFriendLocation(context, friend)
                           : null,
@@ -342,14 +376,17 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
             children: [
               Text(
                 'Emergency Contacts',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(color: _primaryTextColor(context)),
               ),
               Text(
                 '${emergencyContacts.length}/${AppLimits.maxEmergencyContacts}',
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
-                    ?.copyWith(color: Colors.white70),
+                    ?.copyWith(color: _mutedTextColor(context)),
               ),
             ],
           ),
@@ -357,8 +394,10 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
           if (emergencyContacts.isEmpty)
             Text(
               'No emergency contacts yet.',
-              style:
-                  Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: _secondaryTextColor(context)),
             )
           else
             ...emergencyContacts.map((contact) {
@@ -369,7 +408,7 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
-                      ?.copyWith(color: Colors.white),
+                      ?.copyWith(color: _primaryTextColor(context)),
                 ),
               );
             }),
@@ -410,12 +449,17 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
               children: [
                 Text(
                   friend.name,
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(color: _primaryTextColor(context)),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   _friendStatusLabel(friend.status),
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: _friendStatusColor(context, friend.status),
+                      ),
                 ),
                 const SizedBox(height: 12),
                 LocationMapCard(
@@ -423,7 +467,7 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
                   lng: friend.lastKnownLng!,
                   title: 'Last known location',
                   height: 220,
-                  mapStyle: MapStyle.satellite,
+                  mapStyle: MapStyle.street,
                   lastUpdated: friend.lastActive,
                 ),
                 const SizedBox(height: 12),
@@ -459,8 +503,7 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
           ),
           child: Consumer(
             builder: (context, ref, _) {
-              final controller =
-                  ref.read(emergencyControllerProvider.notifier);
+              final controller = ref.read(emergencyControllerProvider.notifier);
               final contacts = ref.watch(contactsControllerProvider);
               return GlassCard(
                 borderRadius: 28,
@@ -470,7 +513,10 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
                     children: [
                       Text(
                         'Edit Emergency Contacts',
-                        style: Theme.of(context).textTheme.titleMedium,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(color: _primaryTextColor(context)),
                       ),
                       const SizedBox(height: 8),
                       Expanded(
@@ -519,8 +565,8 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
                                   ),
                                   onPressed: () async {
                                     final success = await ref
-                                        .read(contactsControllerProvider
-                                            .notifier)
+                                        .read(
+                                            contactsControllerProvider.notifier)
                                         .setEmergency(
                                           contact.id,
                                           !contact.isEmergency,
@@ -616,7 +662,10 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
                 children: [
                   Text(
                     'Add Contact',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(color: _primaryTextColor(context)),
                   ),
                   const SizedBox(height: 12),
                   TextField(

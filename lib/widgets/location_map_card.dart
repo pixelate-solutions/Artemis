@@ -91,13 +91,10 @@ class LocationMapCard extends StatelessWidget {
                     markers: [
                       Marker(
                         point: point,
-                        width: 40,
-                        height: 40,
-                        child: const Icon(
-                          Icons.location_pin,
-                          color: Colors.redAccent,
-                          size: 36,
-                        ),
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        child: const _PulsingLocationMarker(),
                       ),
                     ],
                   ),
@@ -146,6 +143,87 @@ class LocationMapCard extends StatelessWidget {
     }
     return Uri.parse(
       'https://www.google.com/maps/dir/?api=1&destination=$query',
+    );
+  }
+}
+
+
+class _PulsingLocationMarker extends StatefulWidget {
+  const _PulsingLocationMarker();
+
+  @override
+  State<_PulsingLocationMarker> createState() =>
+      _PulsingLocationMarkerState();
+}
+
+class _PulsingLocationMarkerState extends State<_PulsingLocationMarker>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+    _pulse = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const dotSize = 12.0;
+    const haloSize = 26.0;
+    const baseColor = Colors.blueAccent;
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          AnimatedBuilder(
+            animation: _pulse,
+            builder: (context, child) {
+              final scale = 1 + _pulse.value * 1.3;
+              final opacity = (1 - _pulse.value) * 0.35;
+              return Transform.scale(
+                scale: scale,
+                child: Container(
+                  width: haloSize,
+                  height: haloSize,
+                  decoration: BoxDecoration(
+                    color: baseColor.withOpacity(opacity),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              );
+            },
+          ),
+          Container(
+            width: haloSize,
+            height: haloSize,
+            decoration: BoxDecoration(
+              color: baseColor.withOpacity(0.18),
+              shape: BoxShape.circle,
+            ),
+          ),
+          Container(
+            width: dotSize,
+            height: dotSize,
+            decoration: const BoxDecoration(
+              color: baseColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

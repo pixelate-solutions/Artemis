@@ -46,6 +46,10 @@ Ensure `ios/Runner/Info.plist` includes:
 - `android.permission.ACCESS_FINE_LOCATION`
 - `android.permission.READ_CONTACTS`
 
+
+## Maps (OpenStreetMap)
+Maps use OpenStreetMap tiles via flutter_map (free, street names included).
+
 ## Architecture
 ```
 lib/

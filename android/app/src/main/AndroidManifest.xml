@@ -11,6 +11,7 @@
         android:label="Artemis"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <meta-data
         <activity
             android:name=".MainActivity"
             android:exported="true"
